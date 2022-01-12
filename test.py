@@ -1,5 +1,6 @@
 import telebot
 import json
+from test_config import *
 from requests import request
 from random import choice
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton, \
@@ -7,34 +8,24 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton, \
 
 '''
 Тестовый бот. Выполняет команды 
-/help:
-/get_data
-/gotourl
-/exit: завершение работы бота
+/help: Показывает стандартное сообщение
+/get_data: Просит ввести город, выводит сводку погоды с помощью Foreca Weather API
+/gotourl: Предлагает на выбор три варианта перехода на другие сайты
+/exit: завершение работы бота  
 
 Любое другое введенное сообщение переводит на случайный (из списка)
 язык с помощью Rakuten Rapid API - Microsoft Translator
 '''
-
-TEST_BOT_NAME = 'TestingTestBotoBot'
-TEST_TOKEN = '5012013004:AAEynUWNGzNNvjV-X7Lnvi744YNDp4ZRadA'
-LANGUAGES = ['ba', 'bg', 'uk', 'uz', 'fr']
+# TODO завершение работы бота -- уточнить в каком смысле
 
 bot = telebot.TeleBot(TEST_TOKEN, parse_mode='HTML')
 
-API_DETECT_URL = "https://microsoft-translator-text.p.rapidapi.com/Detect"
 
-API_TRANSLATE_URL = "https://microsoft-translator-text.p.rapidapi.com/translate"
-api_detect_headers = {
-    'content-type': "application/json",
-    'x-rapidapi-key': "2421d88313mshfabf818b1b8af85p1e2c18jsnf54c16d3cf46",
-    'x-rapidapi-host': "microsoft-translator-text.p.rapidapi.com"
-}
-api_translate_headers = headers = {
-    'content-type': "application/json",
-    'x-rapidapi-key': "2421d88313mshfabf818b1b8af85p1e2c18jsnf54c16d3cf46",
-    'x-rapidapi-host': "microsoft-translator-text.p.rapidapi.com"
-}
+# Обработка команды /start
+@bot.message_handler(commands=['start'])
+def start_command(message):
+    bot.send_message(message.chat.id, START_MESSAGE)
+
 
 # Стационарная клава
 keyboard = ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
@@ -45,13 +36,19 @@ keyboard.add(*row)
 
 
 # Обработка нажатий клавиш
-@bot.message_handler(func=lambda message: message.text.startswith('>'))
-def keyboard_handler(message):
+@bot.message_handler(commands=['button'])
+def button_message(message):
+    bot.send_message(message.chat.id, 'Выберите что вам надо', reply_markup=keyboard)
+
+
+@bot.message_handler(content_types='text')
+def button_handler(message):
+
     if 'Exit' in message.text:
         bot.stop_bot()
-
     elif 'Help' in message.text:
-        bot.send_message(message.from_user.id, "Done with Keyboard", reply_markup=keyboard)
+        # Есть еще from_user.id
+        bot.send_message(message.chat.id, HELP_MESSAGE, reply_markup=keyboard)
     elif 'URL' in message.text:
 
         ...
