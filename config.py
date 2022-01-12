@@ -1,5 +1,5 @@
 TOKEN = '5003946596:AAEDEViMryh7-6CHdFlIfQPa7Sh9338_oKU'
-BOT_NAME ='HeartTravelBot'
+BOT_NAME = 'HeartTravelBot'
 
 MESSAGE_DICT = {
     'help': {

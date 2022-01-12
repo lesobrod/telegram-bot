@@ -2,7 +2,7 @@ import config
 import telebot
 from telebot.types import Message, CallbackQuery
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-from bot_redis import redis_db
+from my_redis import redis_db
 
 bot = telebot.TeleBot(config.TOKEN, parse_mode='HTML')
 

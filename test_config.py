@@ -1,6 +1,6 @@
 TEST_BOT_NAME = 'TestingTestBotoBot'
 TEST_TOKEN = '5012013004:AAEynUWNGzNNvjV-X7Lnvi744YNDp4ZRadA'
-LANGUAGES = ['ba', 'bg', 'uk', 'uz', 'fr']
+LANGUAGES = ['ba', 'bg', 'uk', 'uz', 'ro']
 
 API_DETECT_URL = "https://microsoft-translator-text.p.rapidapi.com/Detect"
 
