@@ -1,0 +1,4 @@
+loguru==0.5.3
+pyTelegramBotAPI>4.1
+requests>2.25
+redis>=4.1
