@@ -9,7 +9,7 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton, \
 '''
 Тестовый бот. Выполняет команды 
 /help: Показывает стандартное сообщение
-/get_data: Просит ввести город, выводит сводку погоды с помощью Foreca Weather API
+/get_data: Тест вывода картинки
 /gotourl: Предлагает на выбор три варианта перехода на другие сайты
 /exit: завершение работы бота  
 
@@ -81,7 +81,7 @@ def button_handler(message):
         bot.send_message(message.chat.id, 'Куда пойдем?', reply_markup=in_keyboard)
 
     elif 'data' in message.text:
-        ...
+        bot.send_photo(chat_id=message.chat.id, photo='https://telegram.org/img/t_logo.png')
 
     else:
         # reply_to: ответ с цитатой, bot.send_message(message.chat.id - просто

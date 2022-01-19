@@ -14,10 +14,11 @@ steps = {
     '2max': 'max_price',
     '3': 'distance',
     '4': 'quantity',
+    '5': 'images'
 }
 
 
-def answer(key: str, msg: Message) -> str:
+def answer(key: str) -> str:
     """
     Возвращает подходящий ответ из MESSAGE_DICT
     :param key: str key
@@ -36,7 +37,7 @@ def make_message(msg: Message, prefix: str) -> str:
     :return: string like message
     """
     state = redis_db.hget(msg.chat.id, 'state')
-    message = answer(prefix + state, msg)
+    message = answer(prefix + state)
     if state == '2':
         message += f" ({redis_db.hget(msg.chat.id, 'currency')})"
 
@@ -51,6 +52,8 @@ def is_input_correct(msg: Message) -> bool:
     """
     state = redis_db.hget(msg.chat.id, 'state')
     msg = msg.text.strip()
+    if state == '5' and msg.replace(' ', '').isdigit() and len(msg.split()) == 2:
+        return True
     if state == '4' and ' ' not in msg and msg.isdigit() and 0 < int(msg) <= 20:
         return True
     elif state == '3' and ' ' not in msg and msg.replace('.', '').isdigit():
@@ -71,17 +74,16 @@ def get_parameters_information(msg: Message) -> str:
     parameters = redis_db.hgetall(msg.chat.id)
     sort_order = parameters['order']
     city = parameters['destination_name']
-    currency = parameters['currency']
     message = (
-        f"<b>{answer('parameters', msg)}</b>\n"
-        f"{answer('city', msg)}: {city}\n"
+        f"<b>{answer('parameters')}</b>\n"
+        f"{answer('city')}: {city}\n"
     )
     if sort_order == "DISTANCE_FROM_LANDMARK":
         price_min = parameters['min_price']
         price_max = parameters['max_price']
         distance = parameters['distance']
-        message += f"{answer('price', msg)}: {price_min} - {price_max} {currency}\n" \
-                   f"{answer('max_distance', msg)}: {distance} {answer('dis_unit', msg)}"
+        message += f"{answer('price')}: {price_min} - {price_max} {currency}\n" \
+                   f"{answer('max_distance')}: {distance} {answer('dis_unit')}"
     logger.info(f'Search parameters: {message}')
     return message
 

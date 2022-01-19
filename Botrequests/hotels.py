@@ -67,8 +67,7 @@ def request_hotels(parameters: dict, page: int = 1):
         "checkOut": dates['check_out'],
         "checkIn": dates['check_in'],
         "sortOrder": parameters['order'],
-
-        "currency": 'usd',
+        "currency": 'USD',
     }
     if parameters['order'] == 'DISTANCE_FROM_LANDMARK':
         querystring['priceMax'] = parameters['max_price']
@@ -107,7 +106,7 @@ def structure_hotels_info(msg: Message, data: dict) -> dict:
     :param data: hotel data
     :return: dict of structured hotel data
     """
-    logger.info(f'Function {structure_hotels_info.__name__} called with argument: msd = {msg}, data = {data}')
+    logger.info(f'{structure_hotels_info.__name__} called with argument: msd = {msg}, data = {data}')
     data = data.get('data', {}).get('body', {}).get('searchResults')
     hotels = dict()
     hotels['total_count'] = data.get('totalCount', 0)
@@ -164,16 +163,16 @@ def generate_hotels_descriptions(hotels: dict, msg: Message) -> list[str]:
     :param hotels: Hotels information
     :return: list with string like hotel descriptions
     """
-    logger.info(f'Function {generate_hotels_descriptions.__name__} called with argument {hotels}')
+    logger.info(f'{generate_hotels_descriptions.__name__} called with argument {hotels}')
     hotels_info = []
 
     for hotel in hotels:
         message = (
-            f"{answer('hotel', msg)}: {hotel.get('name')}\n"
-            f"{answer('rating', msg)}: {hotel_rating(hotel.get('star_rating'), msg)}\n"
-            f"{answer('price', msg)}: {hotel['price']} {redis_db.hget(msg.chat.id, 'currency')}\n"
-            f"{answer('distance', msg)}: {hotel.get('distance')}\n"
-            f"{answer('address', msg)}: {hotel.get('address')}\n"
+            f"{answer('hotel')}: {hotel.get('name')}\n"
+            f"{answer('rating')}: {hotel_rating(hotel.get('star_rating'), msg)}\n"
+            f"{answer('price')}: {hotel['price']} {redis_db.hget(msg.chat.id, 'currency')}\n"
+            f"{answer('distance')}: {hotel.get('distance')}\n"
+            f"{answer('address')}: {hotel.get('address')}\n"
         )
         hotels_info.append(message)
     return hotels_info

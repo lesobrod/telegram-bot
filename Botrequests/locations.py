@@ -12,8 +12,7 @@ from config import LOCATIONS_URL, RAPID_API_KEY
 
 def exact_location(data: dict, loc_id: str) -> str:
     """
-     gets the id of location and returns locations name from data
-
+    Возвращает название локации по id
     :param data: dict Message
     :param loc_id: location id
     :return: location name
