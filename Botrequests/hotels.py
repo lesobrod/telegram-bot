@@ -1,44 +1,35 @@
 import os
-
+from dotenv import load_dotenv
 import requests
 from loguru import logger
 from telebot.types import Message
-from config import PROPERTIES_URL, RAPID_API_KEY
-from utils import check_in_n_out_dates, hotel_price,\
-    answer, hotel_address, hotel_rating
-from my_redis import redis_db
+from config import PROPERTIES_URL, FULL_LOGS, CURRENCY, MAX_QUANTITY
+from utils import check_in_n_out_dates, hotel_price, \
+    answer, hotel_address, hotel_rating, hotel_distance
+# from my_redis import redis_db
 
-# TODO RAPIDAPI_KEY = os.getenv('RAPID_API_KEY')
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
+
+RAPID_API_KEY = os.getenv('RAPID_API_KEY')
 
 
 def get_hotels(msg: Message, parameters: dict) -> [list, None]:
     """
-    calls the required functions to take and process the hotel data
+    Обработка данных об отелях
     :param msg: Message
     :param parameters: search parameters
-    :return: list with string like hotel descriptions
+    :return: list
     """
     data = request_hotels(parameters)
     if 'bad_req' in data:
         return ['bad_request']
-    data = structure_hotels_info(msg, data)
+    data = handle_hotels_info(msg, data)
     if not data or len(data['results']) < 1:
         return None
     if parameters['order'] == 'DISTANCE_FROM_LANDMARK':
-        next_page = data.get('next_page')
         distance = float(parameters['distance'])
-        while next_page and next_page < 5 \
-                and float(data['results'][-1]['distance'].replace(',', '.').split()[0]) <= distance:
-            add_data = request_hotels(parameters, next_page)
-            if 'bad_req' in data:
-                logger.warning('bad_request')
-                break
-            add_data = structure_hotels_info(msg, add_data)
-            if add_data and len(add_data["results"]) > 0:
-                data['results'].extend(add_data['results'])
-                next_page = add_data['next_page']
-            else:
-                break
         quantity = int(parameters['quantity'])
         data = choose_best_hotels(data['results'], distance, quantity)
     else:
@@ -48,31 +39,29 @@ def get_hotels(msg: Message, parameters: dict) -> [list, None]:
     return data
 
 
-def request_hotels(parameters: dict, page: int = 1):
+def request_hotels(parameters: dict):
     """
-    request information from the hotel api
-    :param parameters: search parameters
-    :param page: page number
+    Запрос информации из hotel api
+    :param parameters
     :return: response from hotel api
     """
-    logger.info(f'{request_hotels.__name__} called with argument:'
-                f' page = {page}, parameters = {parameters}')
+    logger.info(f'request_hotels called with  parameters = {parameters}')
     dates = check_in_n_out_dates()
 
     querystring = {
         "adults1": "1",
-        "pageNumber": page,
+        "pageNumber": "1",
         "destinationId": parameters['destination_id'],
         "pageSize": parameters['quantity'],
         "checkOut": dates['check_out'],
         "checkIn": dates['check_in'],
         "sortOrder": parameters['order'],
-        "currency": 'USD',
+        "currency": CURRENCY
     }
     if parameters['order'] == 'DISTANCE_FROM_LANDMARK':
         querystring['priceMax'] = parameters['max_price']
         querystring['priceMin'] = parameters['min_price']
-        querystring['pageSize'] = '25'
+        querystring['pageSize'] = MAX_QUANTITY
 
     logger.info(f'Search parameters: {querystring}')
 
@@ -87,67 +76,67 @@ def request_hotels(parameters: dict, page: int = 1):
         data = response.json()
         if data.get('message'):
             raise requests.exceptions.RequestException
-
-        logger.info(f'Hotels api(properties/list) response received: {data}')
+        if FULL_LOGS:
+            logger.info(f'Hotels api(properties/list) response received: {data}')
         return data
 
     except requests.exceptions.RequestException as e:
         logger.error(f'Error receiving response: {e}')
         return {'bad_req': 'bad_req'}
     except Exception as e:
-        logger.info(f'Error in function {request_hotels.__name__}: {e}')
+        logger.info(f'Error in function request_hotels: {e}')
         return {'bad_req': 'bad_req'}
 
 
-def structure_hotels_info(msg: Message, data: dict) -> dict:
+def handle_hotels_info(msg: Message, data: dict) -> dict:
     """
-    structures hotel data
+    Глубокая обработка информации по отелю
     :param msg: Message
     :param data: hotel data
-    :return: dict of structured hotel data
+    :return: dict of handled hotel data
     """
-    logger.info(f'{structure_hotels_info.__name__} called with argument: msd = {msg}, data = {data}')
+    if FULL_LOGS:
+        logger.info(f'handle_hotels_info called with argument: msg = {msg}, data = {data}')
     data = data.get('data', {}).get('body', {}).get('searchResults')
     hotels = dict()
     hotels['total_count'] = data.get('totalCount', 0)
-
-    logger.info(f"Next page: {data.get('pagination', {}).get('nextPageNumber', 0)}")
-    hotels['next_page'] = data.get('pagination', {}).get('nextPageNumber')
     hotels['results'] = []
 
     try:
         if hotels['total_count'] > 0:
             for cur_hotel in data.get('results'):
                 hotel = dict()
+                hotel['hotel_id'] = cur_hotel.get('id')
                 hotel['name'] = cur_hotel.get('name')
                 hotel['star_rating'] = cur_hotel.get('starRating', 0)
                 hotel['price'] = hotel_price(cur_hotel)
-                if not hotel['price']:
-                    continue
-                hotel['distance'] = cur_hotel.get('landmarks')[0].get('distance', answer('no_information', msg))
-                hotel['address'] = hotel_address(cur_hotel, msg)
+                hotel['distance'] = hotel_distance(cur_hotel)
+                hotel['address'] = hotel_address(cur_hotel)
 
                 if hotel not in hotels['results']:
                     hotels['results'].append(hotel)
-        logger.info(f'Hotels in function {structure_hotels_info.__name__}: {hotels}')
+        logger.info(f'Hotels in function handle_hotels_info: {hotels}')
         return hotels
 
     except Exception as e:
-        logger.info(f'Error in function {structure_hotels_info.__name__}: {e}')
+        logger.info(f'Error in function handle_hotels_info: {e}')
 
 
 def choose_best_hotels(hotels: list[dict], distance: float, limit: int) -> list[dict]:
     """
-    deletes hotels that have a greater distance from the city center than the specified one, sorts the rest by price
-    in order increasing and limiting the selection
-    :param limit: number of hotels
-    :param distance: maximum distance from city center
-    :param hotels: structured hotels data
-    :return: required number of best hotels
+    Отбор и сортировка отелей по параметрам
+    :param limit: quantity limit
+    :param distance: distance limit
+    :param hotels: dict
+    :return: choosen hotels
     """
-    logger.info(f'Function {choose_best_hotels.__name__} called with arguments: '
+
+    def dist_filter(elem: dict) -> bool:
+        return float(elem["distance"].strip().replace(',', '.').split()[0]) <= distance
+
+    logger.info(f'choose_best_hotels called with arguments: '
                 f'distance = {distance}, quantity = {limit}\n{hotels}')
-    hotels = list(filter(lambda x: float(x["distance"].strip().replace(',', '.').split()[0]) <= distance, hotels))
+    hotels = list(filter(dist_filter, hotels))
     logger.info(f'Hotels filtered: {hotels}')
     hotels = sorted(hotels, key=lambda k: k["price"])
     logger.info(f'Hotels sorted: {hotels}')
@@ -156,23 +145,26 @@ def choose_best_hotels(hotels: list[dict], distance: float, limit: int) -> list[
     return hotels
 
 
-def generate_hotels_descriptions(hotels: dict, msg: Message) -> list[str]:
+def generate_hotels_descriptions(hotels: dict, msg: Message):
     """
-    generate hotels description
-    :param msg: Message
-    :param hotels: Hotels information
-    :return: list with string like hotel descriptions
+    Создание конечной карточки отеля
+    :param msg:
+    :param hotels:
+    :return:
     """
-    logger.info(f'{generate_hotels_descriptions.__name__} called with argument {hotels}')
+    logger.info(f'generate_hotels_descriptions called with argument {hotels}')
     hotels_info = []
 
     for hotel in hotels:
-        message = (
-            f"{answer('hotel')}: {hotel.get('name')}\n"
-            f"{answer('rating')}: {hotel_rating(hotel.get('star_rating'), msg)}\n"
-            f"{answer('price')}: {hotel['price']} {redis_db.hget(msg.chat.id, 'currency')}\n"
-            f"{answer('distance')}: {hotel.get('distance')}\n"
-            f"{answer('address')}: {hotel.get('address')}\n"
-        )
+        # Возвращает текстовое сообщение и ID
+        message = (hotel.get('hotel_id'),
+
+                   f"Отель:  <a href='https://ru.hotels.com/ho{hotel.get('hotel_id')}/'>{hotel.get('name')}</a>\n"
+                   f"Рейтинг: {hotel_rating(hotel.get('star_rating'), msg)}\n"
+                   f"Цена: {hotel['price']} {CURRENCY}\n"
+                   f"Расстояние до центра: {hotel.get('distance')}\n"
+                   f"Адрес: {hotel.get('address')}\n"
+                   )
         hotels_info.append(message)
+
     return hotels_info

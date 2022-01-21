@@ -1,13 +1,19 @@
+import os
+from dotenv import load_dotenv
 import redis
-# data_base_name ='HeartTravel'
-# TODO Пароль в системную переменную
-# endpoint redis-17913.c281.us-east-1-2.ec2.cloud.redislabs.com:17913
+from config import DATA_BASE_ENDPOINT
+
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
+
+REDIS_PASS = os.getenv('REDIS_PASS')
+
 redis_db = redis.StrictRedis(
-    host='redis-17913.c281.us-east-1-2.ec2.cloud.redislabs.com',
+    host=DATA_BASE_ENDPOINT,
     port=17913,
-    password='7PYOiVZ7P1jLRPqKJdVk01KHwCcttG8n',
+    password=REDIS_PASS,
     db=0,
     charset='utf-8',
     decode_responses=True
 )
-print(redis_db)

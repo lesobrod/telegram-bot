@@ -1,58 +1,50 @@
 import os
 import re
-
+from dotenv import load_dotenv
 import requests
 from telebot.types import Message
 from loguru import logger
-from my_redis import redis_db
-from config import IMAGES_URL, RAPID_API_KEY
+# from my_redis import redis_db
+from config import IMAGES_URL, IMAGE_SIZE, FULL_LOGS
+
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
+
+RAPID_API_KEY = os.getenv('RAPID_API_KEY')
 
 
-# TODO X_RAPIDAPI_KEY = os.getenv('RAPID_API_KEY')
+def replace_tags(img_url):
+    return re.sub(r'\{size\}', IMAGE_SIZE, img_url)
 
 
-def exact_location(data: dict, loc_id: str) -> str:
+def request_images(hotel_id: str):
     """
-     gets the id of location and returns locations name from data
-
-    :param data: dict Message
-    :param loc_id: location id
-    :return: location name
-    """
-    for loc in data['reply_markup']['inline_keyboard']:
-        if loc[0]['callback_data'] == loc_id:
-            return loc[0]['text']
-
-
-def delete_tags(html_text):
-    text = re.sub(r'<([^<>]*)>', '', html_text)
-    return text
-
-
-def request_images(loc_id: str):
-    """
-    Получение базы изображений отеля
-    :param loc_id: String
-
+    Запрос изображений отеля
+    :param hotel_id: String
     :return: data
     """
-
-    querystring = {"id": loc_id}
+    querystring = {"id": hotel_id}
 
     headers = {
         'x-rapidapi-key': RAPID_API_KEY,
         'x-rapidapi-host': "hotels4.p.rapidapi.com"
     }
-    logger.info(f'Parameters for search locations: {querystring}')
-
+    logger.info(f'Parameters for search images: {querystring}')
     try:
         response = requests.request("GET", IMAGES_URL,
                                     headers=headers, params=querystring, timeout=20)
         data = response.json()
-        logger.info(f'Hotels api(images) response received: {data}')
+        if FULL_LOGS:
+            logger.info(f'Hotels api(images) response received: {data}')
+        else:
+            len_hotel_img = len(data["hotelImages"])
+            len_room_img = len(data["roomImages"])
+            logger.info(f'Hotels api(images) response received {len_hotel_img} '
+                        f'hotel images and {len_room_img} rooms images')
 
         if data.get('message'):
-            logger.error(f'Problems with subscription to hotels api {data}')
+            logger.error(f'Problems with subscription to hotels api')
             raise requests.exceptions.RequestException
         return data
     except requests.exceptions.RequestException as e:
@@ -61,13 +53,20 @@ def request_images(loc_id: str):
         logger.error(f'Error: {e}')
 
 
-def get_images(msg, parameters):
+def get_images(msg: Message, parameters: dict) -> list:
     """
     Возвращает список URL: сначала фото отеля потом фото комнат
+    :msg: Message
+    :parameters: dict
+    :return: list of URL
     """
-    data = request_images(parameters['destination_id'])
-    num_hotel_img, num_hotel_img = parameters['images'].split()
-    result = [item["baseUrl"] for item in data["hotelImages"][:num_hotel_img]]
-    # TODO фото комнат похже
-    # result_rooms = [item["baseUrl"] for item in data["hotelImages"][:num_hotel_img]]
+    data = request_images(parameters['hotel_id'])
+    if not data:
+        return []
+    num_hotel_img = int(parameters['num_hotel_img'])
+    num_room_img = int(parameters['num_room_img'])
+    result = [replace_tags(item.get("baseUrl")) for item in data.get("hotelImages")[:num_hotel_img]]
+    result_rooms = [replace_tags(item.get("baseUrl")) for item in
+                    [item["images"][0] for item in data.get("roomImages")[:num_room_img]]]
+    result.extend(result_rooms)
     return result

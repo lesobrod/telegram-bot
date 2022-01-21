@@ -1,13 +1,17 @@
 import os
 import re
-
+from dotenv import load_dotenv
 import requests
 from telebot.types import Message
 from loguru import logger
 from my_redis import redis_db
-from config import LOCATIONS_URL, RAPID_API_KEY
+from config import LOCATIONS_URL, FULL_LOGS, CURRENCY, LOCALE
 
-# RAPIDAPI_KEY = os.getenv('RAPID_API_KEY')
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
+
+RAPID_API_KEY = os.getenv('RAPID_API_KEY')
 
 
 def exact_location(data: dict, loc_id: str) -> str:
@@ -27,17 +31,17 @@ def delete_tags(html_text):
     return text
 
 
-def request_locations(msg):
+def request_locations(msg: Message):
     """
-    # TODO Что здесь делается?
+    Запрос возможных геолокаций
     :param msg: Message
     :return: data
     """
 
     querystring = {
         "query": msg.text.strip(),
-        "locale": 'ru',
-        "currency": 'USD'
+        "locale": LOCALE,
+        "currency": CURRENCY
     }
 
     headers = {
@@ -50,7 +54,8 @@ def request_locations(msg):
         response = requests.request("GET", LOCATIONS_URL,
                                     headers=headers, params=querystring, timeout=20)
         data = response.json()
-        logger.info(f'Hotels api(locations) response received: {data}')
+        if FULL_LOGS:
+            logger.info(f'Hotels api(locations) response received: {data}')
 
         if data.get('message'):
             logger.error(f'Problems with subscription to hotels api {data}')
@@ -76,16 +81,12 @@ def make_locations_list(msg: Message) -> dict:
 
     try:
         locations = dict()
-        print('ml', len(data))
         work_data = data.get('suggestions')[0].get('entities')
-        print(work_data)
         if len(work_data) > 0:
             for item in work_data:
-                print(item)
                 location_name = delete_tags(item['caption'])
                 locations[location_name] = item['destinationId']
-            logger.info(locations)
-            print(locations)
+            logger.info(f'Locations dict: {locations}')
             return locations
     except Exception as e:
         logger.error(f'Could not parse hotel api response. {e}')

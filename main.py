@@ -1,44 +1,63 @@
 import os
+from dotenv import load_dotenv
 from my_redis import redis_db
 import config
 import telebot
 from loguru import logger
 from telebot.types import Message, CallbackQuery
-from telebot.types import ReplyKeyboardMarkup, \
+from telebot.types import ReplyKeyboardMarkup, ReplyKeyboardRemove, \
     InlineKeyboardMarkup, KeyboardButton, InlineKeyboardButton
-from Botrequests.hotels import get_hotels
-from Botrequests.locations import exact_location, make_locations_list
-from Botrequests.images import get_images
+from botrequests.hotels import get_hotels
+from botrequests.locations import exact_location, make_locations_list
+from botrequests.images import get_images
 from utils import is_input_correct, get_parameters_information, \
     make_message, steps, answer, \
     is_user_in_db, add_user, extract_search_parameters
 
 logger.configure(**config.LOGGER_CONFIG)
-# Базовые команды и результаты поиса по ним логгируются в дополнительный файл
-logger.level(name="HIST-COM", no=25, color="<blue>", icon="@")
-logger.level(name="HIST-HOT", no=25, color="<blue>", icon="@")
-logger.add("logs/bot_com.log", level=25, encoding="UTF-8",
-           format="{time} | {level} | {message}")
+# Базовые команды и результаты поиса по ним логгируются с тегом "HIST"
+logger.level(name="HIST", no=25, color="<blue>", icon="@")
+logger.add(sink=lambda msg: print(msg, end=''),
+           format="{level} | {time:YYYY-MMM-D HH:mm:ss} | {message}")
 
-# TODO BOT_TOKEN = os.getenv('BOT_TOKEN')
-bot = telebot.TeleBot(config.TOKEN, parse_mode='HTML')
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
+
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+bot = telebot.TeleBot(BOT_TOKEN, parse_mode='HTML')
+
+# Если установлкено, очищаем лог-файл
+if config.CLEAR_LOGS:
+    with open(config.SINK, 'w') as file:
+        file.truncate()
+
+# Стационарная клава
+keyboard = ReplyKeyboardMarkup(row_width=3, resize_keyboard=True)
+row = [KeyboardButton(text="/lowprice"), KeyboardButton(text="/highprice"),
+       KeyboardButton(text="/bestdeal")]
+keyboard.add(*row)
+row = [KeyboardButton(text="/help"), KeyboardButton(text="/history")]
+keyboard.add(*row)
 
 
 @bot.message_handler(commands=['help', 'start'])
 def get_command_help(message: Message) -> None:
     """
-    "/help" command handler, displays information about bot commands in the chat
+    Обработка команд /help, /start
     :param message: message
     :return: none
     """
+    chat_id = message.chat.id
     if not is_user_in_db(message):
         add_user(message)
+
     if 'start' in message.text:
-        logger.info(f'"start" command is called')
-        bot.send_message(message.chat.id, answer('hello', message))
+        logger.info(f'"start" command is called by {chat_id}')
+        bot.send_message(chat_id, answer('hello'), reply_markup=keyboard)
     else:
-        logger.info(f'"help" command is called')
-        bot.send_message(message.chat.id, answer('help', message))
+        logger.info(f'"help" command is called by {chat_id}')
+        bot.send_message(chat_id, answer('help'))
 
 
 @bot.message_handler(commands=['lowprice', 'highprice', 'bestdeal'])
@@ -48,8 +67,7 @@ def get_searching_commands(message: Message) -> None:
     :param message: Message
     :return: None
     """
-    # Что это отделяет??
-    # logger.info("\n" + "=" * 100 + "\n")
+    keyboard = ReplyKeyboardRemove()
     if not is_user_in_db(message):
         add_user(message)
 
@@ -59,51 +77,46 @@ def get_searching_commands(message: Message) -> None:
 
     if 'lowprice' in message.text:
         redis_db.hset(chat_id, 'order', 'PRICE')
-        logger.log("HIST-COM", '"lowprice" command is called')
-        # logger.info('"lowprice" command is called')
+        logger.log("HIST", f'Команда /lowprice | {chat_id}')
+
     elif 'highprice' in message.text:
         redis_db.hset(chat_id, 'order', 'PRICE_HIGHEST_FIRST')
-        logger.log("HIST-COM", '"highprice" command is called')
-        # logger.info('"highprice" command is called')
+        logger.log("HIST", f'Команда /highprice | {chat_id}')
+
     else:
         redis_db.hset(chat_id, 'order', 'DISTANCE_FROM_LANDMARK')
-        logger.log("HIST-COM", '"bestdeal" command is called')
-        # logger.info('"bestdeal" command is called')
+        logger.log("HIST", f'Команда /bestdeal | {chat_id}')
+
     logger.info(redis_db.hget(chat_id, 'order'))
     state = redis_db.hget(chat_id, 'state')
     logger.info(f"Current state: {state}")
-    print(state)
     bot.send_message(chat_id, make_message(message, 'question_'))
 
 
 @bot.message_handler(commands=['history'])
 def get_command_history(message: Message) -> None:
     """
-    обработка команды /history
-    Команда /history После ввода команды пользователю выводится история поиска отелей.
-    Сама история содержит:
-    1. Команду, которую вводил пользователь.
-    2. Дату и время ввода команды.
-    3. Отели, которые были найдены.
+    Обработка команды /history
     :param message: message
     :return: none
     """
     if not is_user_in_db(message):
         add_user(message)
-    logger.info(f'{get_command_history.__name__} called with {message}')
+
     chat_id = message.chat.id
-    with open("logs/bot_com.log", 'r', encoding='UTF-8') as file:
+    logger.info(f'"history" command is called by {chat_id}')
+    with open(config.SINK, 'r', encoding='UTF-8') as file:
         for line in file:
-            data = line.split('|')
-            if data[1] == "HIST-COM":
-                bot.send_message(chat_id, data[0] + data[2])
-            else:
-                bot.send_message(chat_id, data[2])
+            if line.startswith("HIST"):
+                data = line.split('|')
+                if data[3].strip() == str(chat_id):
+                    bot.send_message(chat_id, f'{data[1]}\n{data[2]}',
+                                     disable_web_page_preview=True)
 
 
 def get_locations(msg: Message) -> None:
     """
-    Поиск отелей в городе
+    Выбор возможных геолокаций по названию
     :param msg: message
     :return: none
     """
@@ -111,7 +124,7 @@ def get_locations(msg: Message) -> None:
         bot.send_message(msg.chat.id, make_message(msg, 'mistake_'))
     else:
         # Предупрежд об ожидании
-        wait_msg = bot.send_message(msg.chat.id, answer('wait', msg))
+        wait_msg = bot.send_message(msg.chat.id, answer('wait'))
 
         # Данные о возможных локациях
         locations = make_locations_list(msg)
@@ -119,15 +132,13 @@ def get_locations(msg: Message) -> None:
         bot.delete_message(msg.chat.id, wait_msg.id)
 
         if not locations or len(locations) < 1:
-            bot.send_message(msg.chat.id, answer('locations_not_found', msg))
+            bot.send_message(msg.chat.id, answer('locations_not_found'))
         elif locations.get('bad_request'):
-            bot.send_message(msg.chat.id, answer('bad_request', msg))
+            bot.send_message(msg.chat.id, answer('bad_request'))
         else:
             menu = InlineKeyboardMarkup()
-            print('get_loc')
 
             for loc_name, loc_id in locations.items():
-                print(type(loc_name), type(loc_id))
                 menu.add(InlineKeyboardButton(text=loc_name,
                                               callback_data='code' + loc_id))
 
@@ -137,32 +148,20 @@ def get_locations(msg: Message) -> None:
 
 
 def images_list(msg: Message) -> None:
-    # TODO часть работы вынести в пред процесс, и откуда брать loc_id
     """
-    5. Необходимость загрузки и вывода фотографий для каждого отеля (“Да/Нет”)
-    При положительном ответе пользователь также вводит количество необходимых фотографий
-    (не больше заранее определённого максимума)
-    показывает фото данного отеля
-    Показывает num_hotel_img фото самого отеля (если есть) и num_rooms_img фоток номеров
-    :param msg: num_hotel_img <space> num_rooms_img
+    Отображает фото отеля
+    :param: msg
     :return: none
     """
     chat_id = msg.chat.id
-    # запрос изображений занимает время
-    wait_msg = bot.send_message(chat_id, answer('wait'))
-
     params = extract_search_parameters(msg)
     images = get_images(msg, params)
 
-    logger.info(f'{get_hotels.__name__} returned: {images}')
-    bot.delete_message(chat_id, wait_msg.id)
+    logger.info(f'get_images returned: {images}')
+
     if not images or len(images) < 1:
         bot.send_message(chat_id, answer('images_not_found'))
-    elif 'bad_request' in images:
-        bot.send_message(chat_id, answer('bad_request'))
     else:
-        quantity = len(images)
-        bot.send_message(chat_id, f"{answer('images_found')}: {quantity}")
         for img in images:
             bot.send_photo(chat_id=chat_id, photo=img)
 
@@ -180,7 +179,7 @@ def hotels_list(msg: Message) -> None:
 
     hotels = get_hotels(msg, params)
 
-    logger.info(f'{get_hotels.__name__} returned: {hotels}')
+    logger.info(f'get_hotels returned: {hotels}')
     bot.delete_message(chat_id, wait_msg.id)
     if not hotels or len(hotels) < 1:
         bot.send_message(chat_id, answer('hotels_not_found'))
@@ -189,10 +188,17 @@ def hotels_list(msg: Message) -> None:
     else:
         quantity = len(hotels)
         bot.send_message(chat_id, get_parameters_information(msg))
-        bot.send_message(chat_id, f"{answer('hotels_found')}: {quantity}")
+        bot.send_message(chat_id, "{}: {}".format(answer('hotels_found'), quantity))
         for hotel in hotels:
-            bot.send_message(chat_id, hotel)
-            logger.log("HIST-HOT", hotel.split("\n")[0])
+            # hotel[0] - ID, hotel[1] - message
+            redis_db.hset(chat_id, 'hotel_id', hotel[0])
+            #  parse_mode='HTML' ВАЖНО , но уже указано при создании бота
+            bot.send_message(chat_id, hotel[1], disable_web_page_preview=True)
+            if redis_db.hget(chat_id, 'show_images') == '1':
+                images_list(msg)
+            # Формат из-за \n
+            logger.log("HIST",
+                       '{} | {}'.format(hotel[1].split("\n")[0], chat_id))
 
 
 def get_search_parameters(msg: Message) -> None:
@@ -201,15 +207,20 @@ def get_search_parameters(msg: Message) -> None:
     :param msg: message
     :return: none
     """
-    logger.info(f'{get_search_parameters.__name__} called with argument: {msg}')
+    if config.FULL_LOGS:
+        logger.info(f'get_search_parameters called with argument: {msg}')
+    else:
+        logger.info(f'get_search_parameters called with argument: {msg.json}')
     chat_id = msg.chat.id
     state = redis_db.hget(chat_id, 'state')
     msg_data = msg.text.strip()
+
     # проверка корректности
     if not is_input_correct(msg):
         bot.send_message(chat_id, make_message(msg, 'mistake_'))
     else:
         redis_db.hincrby(msg.chat.id, 'state', 1)
+        logger.info(f"Current state in  get_search_parameters: {state}")
         if state == '2':
             min_price, max_price = sorted(msg_data.split(), key=int)
             redis_db.hset(chat_id, steps[state + 'min'], min_price)
@@ -222,76 +233,97 @@ def get_search_parameters(msg: Message) -> None:
         elif state == '4':
             redis_db.hset(chat_id, steps[state], msg_data)
             logger.info(f"{steps[state]} set to {msg_data}")
+
+            menu = InlineKeyboardMarkup()
+            menu.add(InlineKeyboardButton(text='Да', callback_data='img yes'))
+            menu.add(InlineKeyboardButton(text='Нет', callback_data='img no'))
+            bot.send_message(chat_id, 'Вывести фото?', reply_markup=menu)
+
+        elif state == '5':
+            num_hotel_img, num_room_img = msg_data.split()
+            redis_db.hset(chat_id, 'num_hotel_img', num_hotel_img)
+            logger.info(f"num_hotel_img set to {num_hotel_img}")
+            redis_db.hset(chat_id, 'num_room_img', num_room_img)
+            logger.info(f"num_room_img set to {num_room_img}")
             redis_db.hset(chat_id, 'state', 0)
 
             hotels_list(msg)
 
-        elif state == '5':
-            # TODO Изображения
-            redis_db.hset(chat_id, steps[state], msg_data)
-            logger.info(f"{steps[state]} set to {msg_data}")
-
-            images_list(msg)
-
         else:
             redis_db.hset(chat_id, steps[state], msg_data)
             logger.info(f"{steps[state]} set to {msg_data}")
-
             bot.send_message(chat_id, make_message(msg, 'question_'))
 
 
 @bot.callback_query_handler(func=lambda call: True)
 def keyboard_handler(call: CallbackQuery) -> None:
     """
-    buttons handlers
+    Обработка кнопок
     :param call: callbackquery
     :return: none
     """
-    logger.info(f'{keyboard_handler.__name__} called with argument: {call}')
     chat_id = call.message.chat.id
+    if config.FULL_LOGS:
+        logger.info(f'keyboard_handler called with argument: {call}')
+    else:
+        logger.info(f'keyboard_handler called with argument: {call.message.json}')
+
     bot.edit_message_reply_markup(chat_id=chat_id, message_id=call.message.message_id)
 
     if call.data.startswith('code'):
+        # Обработка выбора локации
+        print('state=', redis_db.hget(chat_id, 'state'))
         if redis_db.hget(chat_id, 'state') != '1':
-            # Если сначала
-            bot.send_message(call.message.chat.id, answer('enter_command', call.message))
+            # Если сначала, то напоминаем ввести команду
+            bot.send_message(call.message.chat.id, answer('enter_command'))
             redis_db.hset(chat_id, 'state', 0)
         else:
             loc_name = exact_location(call.message.json, call.data)
             # Заводим в базу название локации
-            redis_db.hset(chat_id, mapping={"destination_id": call.data[4:], "destination_name": loc_name})
-            logger.info(f"{loc_name} selected")
+            redis_db.hset(chat_id, mapping={"destination_id": call.data[4:],
+                                            "destination_name": loc_name})
+            logger.info(f"Location {loc_name} selected")
             bot.send_message(
                 chat_id,
-                f"{answer('loc_selected', call.message)}: {loc_name}",
+                "{}: {}".format(answer('loc_selected'), loc_name),
             )
-            if redis_db.hget(chat_id, 'order') == 'distance_from_landmark':
+            if redis_db.hget(chat_id, 'order') == 'DISTANCE_FROM_LANDMARK':
                 redis_db.hincrby(chat_id, 'state', 1)
             else:
                 redis_db.hincrby(chat_id, 'state', 3)
             bot.send_message(chat_id, make_message(call.message, 'question_'))
 
+    elif call.data.startswith('img'):
+        # Обработка да/нет фото
+        if call.data.endswith('no'):
+            logger.info("'show_images' set to 0")
+            redis_db.hset(chat_id, 'show_images', 0)
+            hotels_list(call.message)
+        else:
+            logger.info("'show_images' set to 1")
+            redis_db.hset(chat_id, 'show_images', 1)
+            redis_db.hset(chat_id, 'state', 5)
+            bot.send_message(chat_id, answer('question_5'))
+
 
 @bot.message_handler(content_types=['text'])
 def get_text_messages(message) -> None:
     """
-    обработка текствовых сообщений
+    Обработка текстовых сообщений
     :param message: message
     :return: none
     """
-
     if not is_user_in_db(message):
         add_user(message)
     state = redis_db.hget(message.chat.id, 'state')
-    print(state)
+    logger.info(f"Current state in  get_text_messages: {state}")
     if state == '1':
         # Первый запрос - назв города
         get_locations(message)
-        print('c')
     elif state in ['2', '3', '4', '5']:
         get_search_parameters(message)
     else:
-        bot.send_message(message.chat.id, answer('misunderstanding', message))
+        bot.send_message(message.chat.id, answer('misunderstanding'))
 
 
 try:
