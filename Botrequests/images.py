@@ -5,7 +5,7 @@ import requests
 from telebot.types import Message
 from loguru import logger
 # from my_redis import redis_db
-from config import IMAGES_URL, IMAGE_SIZE, FULL_LOGS
+from config import IMAGES_URL, API_HOST_URL, IMAGE_SIZE, FULL_LOGS
 
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
 if os.path.exists(dotenv_path):
@@ -28,7 +28,7 @@ def request_images(hotel_id: str):
 
     headers = {
         'x-rapidapi-key': RAPID_API_KEY,
-        'x-rapidapi-host': "hotels4.p.rapidapi.com"
+        'x-rapidapi-host': API_HOST_URL
     }
     logger.info(f'Parameters for search images: {querystring}')
     try:

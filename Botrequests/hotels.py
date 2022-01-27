@@ -3,7 +3,8 @@ from dotenv import load_dotenv
 import requests
 from loguru import logger
 from telebot.types import Message
-from config import PROPERTIES_URL, FULL_LOGS, CURRENCY, MAX_QUANTITY
+from config import PROPERTIES_URL, API_HOST_URL, HOTELS_URL,\
+    FULL_LOGS, CURRENCY, MAX_QUANTITY
 from utils import check_in_n_out_dates, hotel_price, \
     answer, hotel_address, hotel_rating, hotel_distance
 # from my_redis import redis_db
@@ -67,7 +68,7 @@ def request_hotels(parameters: dict):
 
     headers = {
         'x-rapidapi-key': RAPID_API_KEY,
-        'x-rapidapi-host': "hotels4.p.rapidapi.com"
+        'x-rapidapi-host': API_HOST_URL
     }
 
     try:
@@ -159,7 +160,7 @@ def generate_hotels_descriptions(hotels: dict, msg: Message):
         # Возвращает текстовое сообщение и ID
         message = (hotel.get('hotel_id'),
 
-                   f"Отель:  <a href='https://ru.hotels.com/ho{hotel.get('hotel_id')}/'>{hotel.get('name')}</a>\n"
+                   f"Отель:  <a href='{HOTELS_URL}{hotel.get('hotel_id')}/'>{hotel.get('name')}</a>\n"
                    f"Рейтинг: {hotel_rating(hotel.get('star_rating'), msg)}\n"
                    f"Цена: {hotel['price']} {CURRENCY}\n"
                    f"Расстояние до центра: {hotel.get('distance')}\n"

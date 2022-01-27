@@ -1,11 +1,13 @@
-BOT_NAME = 'HeartTravelBot'
-DATA_BASE_NAME = 'HeartTravel'
+# BOT_NAME = 'HeartTravelBot'
+# DATA_BASE_NAME = 'HeartTravel'
 
 DATA_BASE_ENDPOINT = 'redis-17913.c281.us-east-1-2.ec2.cloud.redislabs.com'
 
+API_HOST_URL = "hotels4.p.rapidapi.com"
 LOCATIONS_URL = "https://hotels4.p.rapidapi.com/locations/search"
 PROPERTIES_URL = "https://hotels4.p.rapidapi.com/properties/list"
 IMAGES_URL = "https://hotels4.p.rapidapi.com/properties/get-hotel-photos"
+HOTELS_URL = "https://ru.hotels.com/ho"
 
 MAX_QUANTITY = "100"
 LOCALE = "ru"
