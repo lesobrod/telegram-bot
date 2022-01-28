@@ -31,7 +31,7 @@
 * [pyTelegramBotAPI](https://github.com/python-telegram-bot/python-telegram-bot) – Python Telegram Bot API
 * [requests](https://github.com/psf/requests) – библиотека запросов requests
 * [redis](https://redis.io/) – база данных для каждого пользователя
-* [loguru](https://github.com/Delgan/loguru) – умное логгирование
+* [loguru](https://github.com/Delgan/loguru) – умное логирование
 * [python-dotenv](https://github.com/theskumar/python-dotenv) – работа с переменными окружения
 
 Все зависимости можно установить, выполнив команду:  
@@ -45,8 +45,8 @@
 5. Внесите точку входа в переменную DATA_BASE_ENDPOINT файла config.py
 6. Внесите пароль в переменную окружения REDIS_PASS
 
-### Логгинг
-Файл логгирования bot.log появляется в папке /logs.
+### Логинг
+Файл логирования bot.log появляется в папке /logs.
 Параметры можно настроить в файле config.py:
 * SINK - имя лог-файла
 * CLEAR_LOGS - очищаем ли лог при перезапуске бота
