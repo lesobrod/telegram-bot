@@ -30,13 +30,26 @@ def make_message(msg: Message, prefix: str) -> str:
     """
     Формирование сложного сообщения
     :param msg: Message
-    :param prefix
+    :param prefix: string
     :return: string
     """
     state = redis_db.hget(msg.chat.id, 'state')
     message = answer(prefix + state)
 
     return message
+
+
+def str_to_limit(num: str, limit: str) -> str:
+    """
+    Приводит число к максимальному значению Принимает и возвращает строки
+    :param num: int as str
+    :param limit: int as str
+    :return: string
+    """
+    if int(num) > int(limit):
+        return limit
+    else:
+        return num
 
 
 def is_input_correct(msg: Message) -> bool:
@@ -47,11 +60,9 @@ def is_input_correct(msg: Message) -> bool:
     """
     state = redis_db.hget(msg.chat.id, 'state')
     msg = msg.text.strip()
-    if state == '5':
-        mn, mx = msg.split()
-        if mn.isdigit() and int(mn) < 10 and mx.isdigit() and int(mx) < 10:
-            return True
-    if state == '4' and ' ' not in msg and msg.isdigit() and 0 < int(msg) <= 20:
+    if state == '5' and msg.replace(' ', '').isdigit():
+        return True
+    if state == '4' and ' ' not in msg and msg.isdigit():
         return True
     elif state == '3' and ' ' not in msg and msg.replace('.', '').isdigit():
         return True

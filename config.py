@@ -9,8 +9,11 @@ PROPERTIES_URL = "https://hotels4.p.rapidapi.com/properties/list"
 IMAGES_URL = "https://hotels4.p.rapidapi.com/properties/get-hotel-photos"
 HOTELS_URL = "https://ru.hotels.com/ho"
 
-MAX_QUANTITY = "100"
-LOCALE = "ru"
+MAX_IMG_QUANTITY = "10"
+MAX_USER_QUANTITY = "20"
+MAX_API_QUANTITY = "100"
+
+LOCALE = "ru_RU"
 # Валюта
 CURRENCY = "USD"
 # Код размера изображений
@@ -21,6 +24,8 @@ SINK = "logs/bot.log"
 CLEAR_LOGS = True
 # Пишем ли длинные логи
 FULL_LOGS = False
+# Дублировать ли лог в терминал
+MONITOR_LOGS = True
 
 LOGGER_CONFIG = {
     "handlers": [
@@ -76,7 +81,7 @@ MESSAGE_DICT = {
     'images_not_found':
         'Нет фото',
     'bad_request':
-        'К сожалению, сервер недоступен, повторите поимк позже.',
+        'К сожалению, сервер недоступен, повторите поиск позже.',
     'distance':
         'Расстояние до центра города',
     'loc_choose':
@@ -111,6 +116,8 @@ MESSAGE_DICT = {
 
     'no_information':
         'Нет данных',
+    'no_history':
+        'В истории пока ничего нет',
     'enter_command':
         'Пожалуйста, сначала введите нужную команду'
 }

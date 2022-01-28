@@ -4,7 +4,7 @@ import requests
 from loguru import logger
 from telebot.types import Message
 from config import PROPERTIES_URL, API_HOST_URL, HOTELS_URL,\
-    FULL_LOGS, CURRENCY, MAX_QUANTITY
+    FULL_LOGS, CURRENCY, MAX_API_QUANTITY
 from utils import check_in_n_out_dates, hotel_price, \
     answer, hotel_address, hotel_rating, hotel_distance
 # from my_redis import redis_db
@@ -62,7 +62,7 @@ def request_hotels(parameters: dict):
     if parameters['order'] == 'DISTANCE_FROM_LANDMARK':
         querystring['priceMax'] = parameters['max_price']
         querystring['priceMin'] = parameters['min_price']
-        querystring['pageSize'] = MAX_QUANTITY
+        querystring['pageSize'] = MAX_API_QUANTITY
 
     logger.info(f'Search parameters: {querystring}')
 
