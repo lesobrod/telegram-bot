@@ -7,7 +7,7 @@ from loguru import logger
 # from my_redis import redis_db
 from config import IMAGES_URL, API_HOST_URL, IMAGE_SIZE, FULL_LOGS
 
-dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env.template')
 if os.path.exists(dotenv_path):
     load_dotenv(dotenv_path)
 
