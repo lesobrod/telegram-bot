@@ -35,7 +35,7 @@
 * [python-dotenv](https://github.com/theskumar/python-dotenv) – работа с переменными окружения
 
 Все зависимости можно установить, выполнив команду:  
-`pip install -r /path/to/requirements.txt`
+`pip install -r requirements.txt`
 
 ### Работа с Redis (вариант облачного хранения)
 1. [Зарегистрируйтесь в системе](https://redis.io/)

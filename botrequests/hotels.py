@@ -9,7 +9,7 @@ from utils import check_in_n_out_dates, hotel_price, \
     answer, hotel_address, hotel_rating, hotel_distance
 # from my_redis import redis_db
 
-dotenv_path = os.path.join(os.path.dirname(__file__), '.env.template')
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
 if os.path.exists(dotenv_path):
     load_dotenv(dotenv_path)
 

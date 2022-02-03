@@ -6,7 +6,7 @@ from telebot.types import Message
 from loguru import logger
 from config import IMAGES_URL, API_HOST_URL, IMAGE_SIZE, FULL_LOGS
 
-dotenv_path = os.path.join(os.path.dirname(__file__), '.env.template')
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
 if os.path.exists(dotenv_path):
     load_dotenv(dotenv_path)
 
@@ -52,16 +52,13 @@ def request_images(hotel_id: str):
         logger.error(f'Error: {e}')
 
 
-def get_images(msg: Message, parameters: dict) -> list:
+def get_images(parameters: dict) -> list:
     """
     Возвращает список URL: сначала фото отеля, потом фото комнат
-    :msg: Message
     :parameters: dict
     :return: list of URL
     """
     data = request_images(parameters['hotel_id'])
-    if not data:
-        return 'not_found'
     num_hotel_img = int(parameters['num_hotel_img'])
     num_room_img = int(parameters['num_room_img'])
     result = [replace_tags(item.get("baseUrl")) for item in data.get("hotelImages")[:num_hotel_img]]

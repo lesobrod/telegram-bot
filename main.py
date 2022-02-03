@@ -15,7 +15,7 @@ from utils import is_input_correct, get_parameters_information, \
     is_user_in_db, add_user, extract_search_parameters
 
 logger.configure(**config.LOGGER_CONFIG)
-# Базовые команды и результаты поиса по ним логгируются с тегами "HIST" и "HIST-COM"
+# Базовые команды и результаты поиса по ним логируются с тегами "HIST" и "HIST-COM"
 logger.level(name="HIST", no=25, color="<blue>", icon="@")
 logger.level(name="HIST-COM", no=25, color="<blue>", icon="@")
 
@@ -24,7 +24,7 @@ if config.MONITOR_LOGS:
     logger.add(sink=lambda msg: print(msg, end=''),
                format="{level} | {time:YYYY-MMM-D HH:mm:ss} | {message}")
 
-# Если установлкено, очищаем лог-файл
+# Если установлено, очищаем лог-файл
 if config.CLEAR_LOGS:
     with open(config.SINK, 'w') as file:
         file.truncate()
@@ -36,7 +36,7 @@ if os.path.exists(dotenv_path):
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode='HTML')
 
-# Стационарная клава
+# Стационарная клавиатура
 keyboard = ReplyKeyboardMarkup(row_width=3, resize_keyboard=True)
 row = [KeyboardButton(text="/lowprice"), KeyboardButton(text="/highprice"),
        KeyboardButton(text="/bestdeal")]
@@ -168,7 +168,7 @@ def images_list(msg: Message) -> None:
     """
     chat_id = msg.chat.id
     params = extract_search_parameters(msg)
-    images = get_images(msg, params)
+    images = get_images(params)
 
     logger.info(f'get_images returned: {images}')
 
