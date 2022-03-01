@@ -1,6 +1,6 @@
 # import re
 from datetime import datetime, timedelta
-
+import time
 from telebot.types import Message
 from loguru import logger
 
@@ -26,14 +26,14 @@ def answer(key: str) -> str:
     return MESSAGE_DICT[key]
 
 
-def make_message(msg: Message, prefix: str) -> str:
+def make_message(chat_id, prefix: str) -> str:
     """
     Формирование сложного сообщения
-    :param msg: Message
+    :param chat_id
     :param prefix: string
     :return: string
     """
-    state = redis_db.hget(msg.chat.id, 'state')
+    state = redis_db.hget(chat_id, 'state')
     message = answer(prefix + state)
 
     return message
@@ -153,24 +153,37 @@ def hotel_rating(rating: float, msg: Message) -> str:
     return '⭐' * int(rating)
 
 
-def check_in_n_out_dates(check_in: datetime = None, check_out: datetime = None) -> dict:
+def check_in_n_out_dates(dates: str) -> dict:
     """
     Приведение дат в нужный формат
-    Если дат нет - установка на сегодня-завтра
-    :param check_in: check-in date
-    :param check_out: check-out date
+    Если дат нет или ошибочны - установка на сегодня-завтра
+    :param dates: str
     :return: dict with check-in and check-out dates
     """
-    dates = {}
-    if not check_in:
-        check_in = datetime.now()
-    if not check_out:
-        check_out = check_in + timedelta(1)
+    test = dates.split()
+    try:
+        check_in = datetime.strptime(test[0], '%Y-%m-%d')
+        if check_in < datetime.today():
+            raise ValueError
+    except ValueError:
+        check_in = datetime.today()
 
-    dates['check_in'] = check_in.strftime("%Y-%m-%d")
-    dates['check_out'] = check_out.strftime("%Y-%m-%d")
+    if len(test) == 1:
+        check_out = check_in + timedelta(days=1)
+    else:
+        try:
+            check_out = datetime.strptime(test[1], '%Y-%m-%d')
+            if check_out <= check_in:
+                raise ValueError
+        except ValueError:
+            check_out = check_in + timedelta(days=1)
 
-    return dates
+        logger.info(f'Dates for request: In = {check_in.strftime("%Y-%m-%d")}, '
+                    f'Out = {check_out.strftime("%Y-%m-%d")}')
+
+    return {'check_in': check_in.strftime("%Y-%m-%d"),
+            'check_out': check_out.strftime("%Y-%m-%d"),
+            'days_inn': (check_out - check_in).days}
 
 
 def add_user(msg: Message) -> None:

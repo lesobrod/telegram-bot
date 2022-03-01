@@ -55,7 +55,7 @@ def get_command_help(message: Message) -> None:
     chat_id = message.chat.id
     if not is_user_in_db(message):
         add_user(message)
-
+    redis_db.hset(chat_id, 'is_date', 0)
     if 'start' in message.text:
         logger.info(f'"start" command is called by {chat_id}')
         bot.send_message(chat_id, answer('hello'), reply_markup=keyboard)
@@ -76,6 +76,7 @@ def get_searching_commands(message: Message) -> None:
         add_user(message)
 
     chat_id = message.chat.id
+    redis_db.hset(chat_id, 'is_date', 0)
     # Если команда поступила state = 1
     redis_db.hset(chat_id, 'state', 1)
 
@@ -94,7 +95,7 @@ def get_searching_commands(message: Message) -> None:
     logger.info(redis_db.hget(chat_id, 'order'))
     state = redis_db.hget(chat_id, 'state')
     logger.info(f"Current state: {state}")
-    bot.send_message(chat_id, make_message(message, 'question_'))
+    bot.send_message(chat_id, make_message(chat_id, 'question_'))
 
 
 @bot.message_handler(commands=['history'])
@@ -271,6 +272,8 @@ def get_search_parameters(msg: Message) -> None:
                 logger.info(f"num_room_img set to {num_room_img}")
 
             redis_db.hset(chat_id, 'state', 0)
+            redis_db.hset(chat_id, 'is_date', 0)
+
 
             hotels_list(msg)
 
@@ -297,10 +300,10 @@ def keyboard_handler(call: CallbackQuery) -> None:
 
     if call.data.startswith('code'):
         # Обработка выбора локации
-        print('state=', redis_db.hget(chat_id, 'state'))
         if redis_db.hget(chat_id, 'state') != '1':
             # Если сначала, то напоминаем ввести команду
             bot.send_message(call.message.chat.id, answer('enter_command'))
+            redis_db.hset(chat_id, 'is_date', 0)
             redis_db.hset(chat_id, 'state', 0)
         else:
             loc_name = exact_location(call.message.json, call.data)
@@ -312,11 +315,9 @@ def keyboard_handler(call: CallbackQuery) -> None:
                 chat_id,
                 "{}: {}".format(answer('loc_selected'), loc_name),
             )
-            if redis_db.hget(chat_id, 'order') == 'DISTANCE_FROM_LANDMARK':
-                redis_db.hincrby(chat_id, 'state', 1)
-            else:
-                redis_db.hincrby(chat_id, 'state', 3)
-            bot.send_message(chat_id, make_message(call.message, 'question_'))
+
+            redis_db.hset(chat_id, 'is_date', 1)
+            bot.send_message(chat_id, answer('question_1date'))
 
     elif call.data.startswith('img'):
         # Обработка да/нет фото
@@ -331,6 +332,14 @@ def keyboard_handler(call: CallbackQuery) -> None:
             bot.send_message(chat_id, answer('question_5'))
 
 
+def next_step(chat_id):
+    if redis_db.hget(chat_id, 'order') == 'DISTANCE_FROM_LANDMARK':
+        redis_db.hincrby(chat_id, 'state', 1)
+    else:
+        redis_db.hincrby(chat_id, 'state', 3)
+    bot.send_message(chat_id, make_message(chat_id, 'question_'))
+
+
 @bot.message_handler(content_types=['text'])
 def get_text_messages(message) -> None:
     """
@@ -342,8 +351,15 @@ def get_text_messages(message) -> None:
         add_user(message)
     state = redis_db.hget(message.chat.id, 'state')
     logger.info(f"Current state in  get_text_messages: {state}")
+    if redis_db.hget(message.chat.id, 'is_date') == '1':
+        redis_db.hset(message.chat.id, 'dates', message.text.strip())
+        logger.info(f"Dates In-Out: {message.text.strip()}")
+        redis_db.hset(message.chat.id, 'is_date', 0)
+
+        next_step(message.chat.id)
+        return
+
     if state == '1':
-        # Первый запрос - назв города
         get_locations(message)
     elif state in ['2', '3', '4', '5']:
         get_search_parameters(message)

@@ -23,6 +23,7 @@ def get_hotels(msg: Message, parameters: dict) -> [list, None]:
     :param parameters: search parameters
     :return: list
     """
+    dates = check_in_n_out_dates(parameters['dates'])
     data = request_hotels(parameters)
     if 'bad_req' in data:
         return ['bad_request']
@@ -36,7 +37,7 @@ def get_hotels(msg: Message, parameters: dict) -> [list, None]:
     else:
         data = data['results']
 
-    data = generate_hotels_descriptions(data, msg)
+    data = generate_hotels_descriptions(data, dates['days_inn'], msg)
     return data
 
 
@@ -47,7 +48,7 @@ def request_hotels(parameters: dict):
     :return: response from hotel api
     """
     logger.info(f'request_hotels called with  parameters = {parameters}')
-    dates = check_in_n_out_dates()
+    dates = check_in_n_out_dates(parameters['dates'])
 
     querystring = {
         "adults1": "1",
@@ -123,7 +124,7 @@ def handle_hotels_info(msg: Message, data: dict) -> dict:
         logger.info(f'Error in function handle_hotels_info: {e}')
 
 
-def choose_best_hotels(hotels: list[dict], distance: float, limit: int) -> list[dict]:
+def choose_best_hotels(hotels, distance: float, limit: int):
     """
     Отбор и сортировка отелей по параметрам
     :param limit: quantity limit
@@ -146,7 +147,7 @@ def choose_best_hotels(hotels: list[dict], distance: float, limit: int) -> list[
     return hotels
 
 
-def generate_hotels_descriptions(hotels: dict, msg: Message):
+def generate_hotels_descriptions(hotels: dict, days, msg: Message):
     """
     Создание конечной карточки отеля
     :param msg:
@@ -155,14 +156,14 @@ def generate_hotels_descriptions(hotels: dict, msg: Message):
     """
     logger.info(f'generate_hotels_descriptions called with argument {hotels}')
     hotels_info = []
-
     for hotel in hotels:
         # Возвращает текстовое сообщение и ID
         message = (hotel.get('hotel_id'),
 
                    f"Отель:  <a href='{HOTELS_URL}{hotel.get('hotel_id')}/'>{hotel.get('name')}</a>\n"
                    f"Рейтинг: {hotel_rating(hotel.get('star_rating'), msg)}\n"
-                   f"Цена: {hotel['price']} {CURRENCY}\n"
+                   f"Цена за ночь: {hotel['price']} {CURRENCY}\n"
+                   f"Стоимость: {hotel['price'] * days} {CURRENCY}\n"
                    f"Расстояние до центра: {hotel.get('distance')}\n"
                    f"Адрес: {hotel.get('address')}\n"
                    )
