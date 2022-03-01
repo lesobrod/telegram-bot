@@ -231,9 +231,9 @@ def get_search_parameters(msg: Message) -> None:
 
     # проверка корректности
     if not is_input_correct(msg):
-        bot.send_message(chat_id, make_message(msg, 'mistake_'))
+        bot.send_message(chat_id, make_message(chat_id, 'mistake_'))
     else:
-        redis_db.hincrby(msg.chat.id, 'state', 1)
+        redis_db.hincrby(chat_id, 'state', 1)
         logger.info(f"Current state in  get_search_parameters: {state}")
         if state == '2':
             min_price, max_price = sorted(msg_data.split(), key=int)
@@ -242,7 +242,7 @@ def get_search_parameters(msg: Message) -> None:
             redis_db.hset(chat_id, steps[state + 'max'], max_price)
             logger.info(f"{steps[state + 'max']} set to {max_price}")
 
-            bot.send_message(chat_id, make_message(msg, 'question_'))
+            bot.send_message(chat_id, make_message(chat_id, 'question_'))
 
         elif state == '4':
             # Выводим не более MAX_USER_QUANTITY отелей
@@ -280,7 +280,7 @@ def get_search_parameters(msg: Message) -> None:
         else:
             redis_db.hset(chat_id, steps[state], msg_data)
             logger.info(f"{steps[state]} set to {msg_data}")
-            bot.send_message(chat_id, make_message(msg, 'question_'))
+            bot.send_message(chat_id, make_message(chat_id, 'question_'))
 
 
 @bot.callback_query_handler(func=lambda call: True)
